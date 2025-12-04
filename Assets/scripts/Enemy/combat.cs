@@ -1,19 +1,53 @@
 using UnityEngine;
 
-public class Combat : MonoBehaviour
+public class EnemyCombat : MonoBehaviour
 {
-    [Header("Attack Settings")]
+    [Header("Combat Stats")]
     public int damage = 1;
+    public float knockbackForce = 6f;
+    public float weaponRange = 0.5f;
 
-    private void OnCollisionEnter2D(Collision2D collision)
+    [Header("References")]
+    public Transform attackPoint;
+    public LayerMask playerLayer;
+
+    private Vector2 _knockbackDirection;
+
+    public void SetAttackDirection(Vector2 direction)
     {
-        // Try to get PlayerHealth component
-        PlayerHealth health = collision.gameObject.GetComponent<PlayerHealth>();
+        // Stores the direction provided by the EnemyController for knockback
+        _knockbackDirection = direction.normalized;
+    }
 
-        // If the object has PlayerHealth, deal damage
-        if (health != null)
+    // This function must be called via an Animation Event on the attack frame.
+    public void Attack()
+    {
+        if (attackPoint == null) return;
+
+        // Detect enemies in range
+        Collider2D[] hits = Physics2D.OverlapCircleAll(attackPoint.position, weaponRange, playerLayer);
+
+        foreach (Collider2D hit in hits)
         {
-            health.ChangeHealth(-damage);
+            // Apply Damage
+            if (hit.TryGetComponent(out PlayerHealth health))
+            {
+                health.ChangeHealth(-damage);
+            }
+
+            // Apply Knockback
+            if (hit.TryGetComponent(out PlayerKnockback kb))
+            {
+                // Note: PlayerKnockback script is assumed to exist.
+                kb.ApplyKnockback(_knockbackDirection, knockbackForce);
+            }
         }
+    }
+
+    private void OnDrawGizmosSelected()
+    {
+        if (attackPoint == null) return;
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireSphere(attackPoint.position, weaponRange);
     }
 }

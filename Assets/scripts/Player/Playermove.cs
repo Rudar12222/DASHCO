@@ -2,31 +2,59 @@ using UnityEngine;
 
 public class playermovement : MonoBehaviour
 {
-    public float speed = 5;
+    [Header("Movement")]
+    public float speed = 5f;
+    public float acceleration = 15f;
+
+    [Header("References")]
     public Rigidbody2D rb;
     public Animator anim;
 
-    void FixedUpdate()
+    private Vector2 inputVector;
+    private Vector2 moveVelocity;
+    private bool isMoving;
+
+    private void Awake()
     {
-        float horizontal = Input.GetAxis("Horizontal");
-        float vertical = Input.GetAxis("Vertical");
-
-        // Move player
-        rb.linearVelocity = new Vector2(horizontal, vertical) * speed;
-
-        // Send values to Animator
-        anim.SetFloat("horizontal", horizontal);
-        anim.SetFloat("vertical", vertical);
-
-        // Check if moving or idle
-        bool isMoving = horizontal != 0 || vertical != 0;
-        anim.SetBool("isMoving", isMoving);
-       
+        if (!rb) rb = GetComponent<Rigidbody2D>();
+        if (!anim) anim = GetComponentInChildren<Animator>();
         
-        // FLIP PLAYER WHEN MOVING LEFT/RIGHT
-        if (horizontal > 0)
-            transform.localScale = new Vector3(1, 1, 1);  // Face Right
-        else if (horizontal < 0)
-            transform.localScale = new Vector3(-1, 1, 1); // Face Left
+        if (!rb) Debug.LogError("❗ Rigidbody2D missing on Player!");
+        if (!anim) Debug.LogError("❗ Animator missing on PlayerSprite child!");
+    }
+
+    private void Update()
+    {
+        float h = Input.GetAxisRaw("Horizontal");
+        float v = Input.GetAxisRaw("Vertical");
+        inputVector = new Vector2(h, v).normalized;
+
+        if (anim)
+        {
+            anim.SetFloat("horizontal", h);
+            anim.SetBool("isMoving", inputVector.magnitude > 0);
+        }
+
+        // Flip sprite
+        if (h > 0.1f) transform.localScale = new Vector3(1, 1, 1);
+        else if (h < -0.1f) transform.localScale = new Vector3(-1, 1, 1);
+
+        isMoving = inputVector.magnitude > 0;
+    }
+
+    private void FixedUpdate()
+    {
+        if (!rb) return;
+
+        moveVelocity = inputVector * speed;
+
+        // Smooth movement
+        rb.linearVelocity = Vector2.MoveTowards(
+            rb.linearVelocity,
+            moveVelocity,
+            acceleration * Time.fixedDeltaTime
+        );
+        
+        rb.freezeRotation = true;
     }
 }
